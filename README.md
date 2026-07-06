@@ -1,36 +1,55 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# rekt-report
 
-## Getting Started
+**Automated crypto exploit response**: register a hack incident, and the backend traces the stolen funds unattended, shows live progress on a public dashboard, and generates a compliance-ready evidence report (PDF) for stablecoin issuers (Tether/Circle) and exchanges.
 
-First, run the development server:
+Part 3 of a blockchain-investigation portfolio suite:
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+| Project | Role |
+|---------|------|
+| [chase-chain](https://github.com/byeonggoon/chase-chain) | Interactive multi-chain fund-tracing tool (investigator workbench) |
+| [stableblacklist](https://github.com/byeonggoon/stableblacklist) | Stablecoin freeze / OFAC sanctions data infrastructure |
+| **rekt-report** | Unattended incident-response pipeline (this repo) |
+
+## How it works (v1)
+
+```
+Incident registered (hacker addresses + incident time, owner-only)
+  → GitHub Actions trace worker (N-hop haircut taint propagation)
+  → hop-level checkpoints in Supabase (resumable + live progress)
+  → endpoints classified: CEX deposit / dormant funds / mixer / bridged out
+  → standard evidence PDF: methodology, per-endpoint tainted amounts,
+    path TX hashes, timeline, graph snapshot
+  → public dashboard: incident cards + live trace status
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Report **sending** is intentionally human-approved (not automated) and out of v1 scope.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Trace methodology
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- **Exploration**: haircut (proportional) taint propagation — branch priority and pruning (default: taint < 1%, max 10 hops, 500 addresses per incident)
+- **Termination**: CEX / mixer arrival stops the branch; bridges are flagged as `bridge-out` (cross-chain continuation is a later phase)
+- Chain coverage rollout: EVM (34 chains) → bridge continuation → Tron / Solana / Bitcoin
 
-## Learn More
+Core taint math is unit-tested (`lib/trace/`).
 
-To learn more about Next.js, take a look at the following resources:
+## Development phases
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- [x] Phase 0 — scaffold: Next.js + TS strict, vitest, `rr_` schema, CI
+- [ ] Phase 1 — headless trace engine (EVM single-chain) + unit tests
+- [ ] Phase 2 — GH Actions worker + Supabase checkpoints (resumable jobs)
+- [ ] Phase 3 — public dashboard (incident cards, live progress, endpoints)
+- [ ] Phase 4 — standard evidence PDF generator
+- [ ] Phase 5 — real-incident demo + public deployment (v1 complete)
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Stack
 
-## Deploy on Vercel
+Next.js (App Router) · TypeScript strict · Supabase (`rr_` tables) · GitHub Actions worker · Vitest
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Commands
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+npm run dev        # dev server
+npm test           # vitest
+npm run typecheck  # tsc --noEmit
+npm run lint
+```
