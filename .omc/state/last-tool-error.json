@@ -1,7 +1,0 @@
-{
-  "tool_name": "mcp__Claude_Preview__preview_eval",
-  "tool_input_preview": "{\"serverId\":\"1a652e35-8709-419d-9a20-844b69bac393\",\"expression\":\"new Promise(r => { window.location.reload(); setTimeout(() => { const cs = getComputedStyle(document.documentElement); const h1 = docum...",
-  "error": "Eval failed: Inspected target navigated or closed",
-  "timestamp": "2026-07-06T13:29:17.087Z",
-  "retry_count": 1
-}
