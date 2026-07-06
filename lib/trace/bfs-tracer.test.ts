@@ -1,0 +1,187 @@
+import { describe, it, expect } from 'vitest';
+import { trace } from './bfs-tracer';
+import type { AggregatedTransfer, AddressTransfer, ChainId, StopReason, FetchResult } from './index';
+
+/**
+ * Build a mock fetch over a static forward-flow graph.
+ * `graph[address]` = list of [recipient, value] outgoing edges.
+ * The engine is injected with this instead of real RPC.
+ */
+function mockFetch(graph: Record<string, [string, number][]>) {
+  return async (address: string): Promise<FetchResult> => {
+    const out = graph[address] ?? [];
+    const aggregated: AggregatedTransfer[] = out.map(([to, value], i) => ({
+      from: address,
+      to,
+      tokenSymbol: 'ETH',
+      totalValue: value,
+      formattedValue: String(value),
+      txCount: 1,
+      latestHash: `0x${address.slice(2, 6)}-${i}`,
+      latestTimestamp: 0,
+      allHashes: [`0x${address.slice(2, 6)}-${i}`],
+    }));
+    const transfers: AddressTransfer[] = aggregated.map(a => ({
+      hash: a.latestHash,
+      from: a.from,
+      to: a.to,
+      value: String(a.totalValue),
+      formattedValue: a.formattedValue,
+      tokenSymbol: 'ETH',
+      tokenDecimals: 18,
+      isNative: true,
+      timestamp: 0,
+    }));
+    return { aggregated, transfers };
+  };
+}
+
+const noStop = () => null;
+const CHAIN: ChainId = 'ethereum';
+
+describe('trace (forward haircut BFS)', () => {
+  it('propagates taint proportionally across one hop', async () => {
+    const fetch = mockFetch({
+      '0xORIGIN': [['0xA', 600], ['0xB', 400]],
+    });
+    const res = await trace('0xORIGIN', CHAIN, 'forward', fetch, noStop, { maxDepth: 1 });
+
+    const a = res.nodes.find(n => n.address === '0xA')!;
+    const b = res.nodes.find(n => n.address === '0xB')!;
+    expect(a.taintRatio).toBeCloseTo(0.6, 9);
+    expect(b.taintRatio).toBeCloseTo(0.4, 9);
+    expect(a.depth).toBe(1);
+  });
+
+  it('carries taint multiplicatively over two hops', async () => {
+    const fetch = mockFetch({
+      '0xORIGIN': [['0xA', 1000]], // A gets full taint 1.0
+      '0xA': [['0xB', 750], ['0xC', 250]], // B: 0.75, C: 0.25
+    });
+    const res = await trace('0xORIGIN', CHAIN, 'forward', fetch, noStop, { maxDepth: 2 });
+    expect(res.nodes.find(n => n.address === '0xB')!.taintRatio).toBeCloseTo(0.75, 9);
+    expect(res.nodes.find(n => n.address === '0xC')!.taintRatio).toBeCloseTo(0.25, 9);
+  });
+
+  it('marks a CEX branch and does not expand it', async () => {
+    const fetch = mockFetch({
+      '0xORIGIN': [['0xCEX', 500], ['0xA', 500]],
+      '0xCEX': [['0xDEEP', 500]], // should never be fetched
+      '0xA': [['0xB', 500]],
+    });
+    const stopAtCex = (addr: string): StopReason | null =>
+      addr === '0xCEX' ? 'cex' : null;
+    const res = await trace('0xORIGIN', CHAIN, 'forward', fetch, stopAtCex, { maxDepth: 3 });
+
+    const cex = res.nodes.find(n => n.address === '0xCEX')!;
+    expect(cex.stopReason).toBe('cex');
+    // 0xDEEP is behind the CEX and must not appear
+    expect(res.nodes.some(n => n.address === '0xDEEP')).toBe(false);
+    // sibling branch continued
+    expect(res.nodes.some(n => n.address === '0xB')).toBe(true);
+  });
+
+  it('prevents cycles: a revisited address emits an edge but is not re-enqueued', async () => {
+    const fetch = mockFetch({
+      '0xORIGIN': [['0xA', 1000]],
+      '0xA': [['0xB', 1000]],
+      '0xB': [['0xA', 1000]], // cycle back to A
+    });
+    const res = await trace('0xORIGIN', CHAIN, 'forward', fetch, noStop, { maxDepth: 5 });
+    // A appears once as a node
+    expect(res.nodes.filter(n => n.address === '0xA')).toHaveLength(1);
+    // the B->A edge still exists
+    expect(res.edges.some(e => e.from === '0xB' && e.to === '0xA')).toBe(true);
+  });
+
+  it('honors maxFanoutPerHop by following only the top-N by value', async () => {
+    const fetch = mockFetch({
+      '0xORIGIN': [['0xA', 500], ['0xB', 300], ['0xC', 200], ['0xD', 100]],
+    });
+    const res = await trace('0xORIGIN', CHAIN, 'forward', fetch, noStop, {
+      maxDepth: 1,
+      maxFanoutPerHop: 2,
+    });
+    const addrs = res.nodes.map(n => n.address).sort();
+    expect(addrs).toEqual(['0xA', '0xB']); // top 2 by value
+  });
+
+  it('stops at maxDepth', async () => {
+    const fetch = mockFetch({
+      '0xORIGIN': [['0xA', 1000]],
+      '0xA': [['0xB', 1000]],
+      '0xB': [['0xC', 1000]],
+    });
+    const res = await trace('0xORIGIN', CHAIN, 'forward', fetch, noStop, { maxDepth: 2 });
+    expect(res.nodes.some(n => n.address === '0xC')).toBe(false);
+    expect(res.nodes.map(n => n.address).sort()).toEqual(['0xA', '0xB']);
+  });
+
+  it('flags reachedMaxNodes when the node budget is exhausted', async () => {
+    const fetch = mockFetch({
+      '0xORIGIN': [['0xA', 5], ['0xB', 4], ['0xC', 3]],
+    });
+    const res = await trace('0xORIGIN', CHAIN, 'forward', fetch, noStop, {
+      maxDepth: 3,
+      maxTotalNewNodes: 2,
+    });
+    expect(res.reachedMaxNodes).toBe(true);
+    expect(res.nodes.length).toBeLessThanOrEqual(2);
+  });
+
+  it('skips dust edges below minWeight', async () => {
+    const fetch = mockFetch({
+      '0xORIGIN': [['0xA', 1000], ['0xDUST', 1]],
+    });
+    const res = await trace('0xORIGIN', CHAIN, 'forward', fetch, noStop, {
+      maxDepth: 1,
+      minWeight: 10,
+    });
+    expect(res.nodes.some(n => n.address === '0xDUST')).toBe(false);
+    expect(res.nodes.some(n => n.address === '0xA')).toBe(true);
+  });
+
+  it('survives a fetch failure on one branch without aborting the trace', async () => {
+    const base = mockFetch({
+      '0xORIGIN': [['0xA', 500], ['0xB', 500]],
+      '0xB': [['0xC', 500]],
+    });
+    const flaky = async (address: string): Promise<FetchResult> => {
+      if (address === '0xA') throw new Error('rpc timeout');
+      return base(address);
+    };
+    const res = await trace('0xORIGIN', CHAIN, 'forward', flaky, noStop, { maxDepth: 2 });
+    // A still recorded as a node (fetch fails only when expanding A's children)
+    expect(res.nodes.some(n => n.address === '0xA')).toBe(true);
+    // B's downstream still traced
+    expect(res.nodes.some(n => n.address === '0xC')).toBe(true);
+  });
+});
+
+describe('trace (backward direction)', () => {
+  it('picks senders as counterparties when tracing backward', async () => {
+    // graph keyed by address returns that address's edges; for backward we model inflows
+    const fetch = async (address: string): Promise<FetchResult> => {
+      const inflows: Record<string, [string, number][]> = {
+        '0xVICTIM': [['0xHACKER', 1000]], // HACKER -> VICTIM
+      };
+      const out = inflows[address] ?? [];
+      const aggregated: AggregatedTransfer[] = out.map(([from, value], i) => ({
+        from,
+        to: address,
+        tokenSymbol: 'ETH',
+        totalValue: value,
+        formattedValue: String(value),
+        txCount: 1,
+        latestHash: `0x${i}`,
+        latestTimestamp: 0,
+        allHashes: [`0x${i}`],
+      }));
+      return { aggregated, transfers: [] };
+    };
+    const res = await trace('0xVICTIM', CHAIN, 'backward', fetch, noStop, { maxDepth: 1 });
+    const hacker = res.nodes.find(n => n.address === '0xHACKER')!;
+    expect(hacker).toBeDefined();
+    expect(hacker.taintRatio).toBeCloseTo(1.0, 9);
+  });
+});
