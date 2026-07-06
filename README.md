@@ -35,7 +35,10 @@ Core taint math is unit-tested (`lib/trace/`).
 ## Development phases
 
 - [x] Phase 0 — scaffold: Next.js + TS strict, vitest, `rr_` schema, CI
-- [ ] Phase 1 — headless trace engine (EVM single-chain) + unit tests
+- [x] Phase 1 — headless trace engine (EVM single-chain) + unit tests
+  - [x] 1a — port chase-chain taint engine (haircut BFS) + 18 tests
+  - [x] 1b — Etherscan V2 fetch layer + entity DB + 16 tests
+  - [x] 1c — `npm run trace` CLI, verified on live data (Ronin hacker → Tornado Cash, 3 hops)
 - [ ] Phase 2 — GH Actions worker + Supabase checkpoints (resumable jobs)
 - [ ] Phase 3 — public dashboard (incident cards, live progress, endpoints)
 - [ ] Phase 4 — standard evidence PDF generator
