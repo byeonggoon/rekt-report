@@ -376,12 +376,13 @@ h1.hero-title .strike::after {
 }
 .node-lbl {
   font-family: var(--font-mono-stack);
-  font-size: 10px;
-  letter-spacing: 0.02em;
+  font-size: 11px;
+  letter-spacing: 0.03em;
 }
 .node-taint {
   font-family: var(--font-display);
   font-size: 15px;
+  letter-spacing: 0.02em;
 }
 
 /* ---------- section frame ---------- */

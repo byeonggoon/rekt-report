@@ -24,6 +24,9 @@ function Node({
       : kind === "open"
         ? "var(--cyan)"
         : "var(--amber)";
+  // Spacing scales with node size so the label/taint never crowd the circle.
+  const labelDy = -(r + 17);
+  const taintDy = r + 30;
   return (
     <g>
       {(kind === "origin" || kind === "mixer") && (
@@ -34,10 +37,10 @@ function Node({
           <animate attributeName="opacity" values="1;0.5;1" dur="1.6s" repeatCount="indefinite" />
         )}
       </circle>
-      <text className="node-lbl" x={x} y={y - 15} textAnchor="middle" fill="var(--dim)">
+      <text className="node-lbl" x={x} y={y + labelDy} textAnchor="middle" fill="var(--dim)">
         {label}
       </text>
-      <text className="node-taint" x={x} y={y + 26} textAnchor="middle" fill={color}>
+      <text className="node-taint" x={x} y={y + taintDy} textAnchor="middle" fill={color}>
         {taint}
       </text>
     </g>
@@ -70,7 +73,7 @@ export default function TraceDiagram() {
       {expanded ? (
         <svg
           className="trace-svg"
-          viewBox="0 0 1100 300"
+          viewBox="-80 -20 1260 340"
           role="img"
           aria-label="Tainted funds flowing from the Ronin exploiter through intermediary wallets to Tornado Cash and an open wallet"
         >
@@ -95,13 +98,13 @@ export default function TraceDiagram() {
           onClick={() => setExpanded(true)}
           aria-label="Expand the full Ronin trace"
         >
-          <svg className="trace-svg" viewBox="0 0 1100 200" role="img" aria-hidden="true">
-            <Flow d="M 210 100 L 890 100" wide />
-            <text className="trace-flow-hint" x={550} y={82} textAnchor="middle" fill="var(--dim)">
+          <svg className="trace-svg" viewBox="0 0 1120 230" role="img" aria-hidden="true">
+            <Flow d="M 300 115 L 820 115" wide />
+            <text className="trace-flow-hint" x={560} y={98} textAnchor="middle" fill="var(--dim)">
               click to expand · 3 hops
             </text>
-            <Node x={170} y={100} label="RONIN EXPLOITER · 0x098B…2f96" taint="stolen $625M" kind="origin" r={10} />
-            <Node x={930} y={100} label="TORNADO CASH · [MIXER]" taint="final destination" kind="mixer" r={10} />
+            <Node x={250} y={115} label="RONIN EXPLOITER · 0x098B…2f96" taint="stolen $625M" kind="origin" r={11} />
+            <Node x={870} y={115} label="TORNADO CASH · [MIXER]" taint="final destination" kind="mixer" r={11} />
           </svg>
         </button>
       )}
