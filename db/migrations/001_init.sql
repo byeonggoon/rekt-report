@@ -1,6 +1,9 @@
 -- rekt-report initial schema
 -- Shared Supabase instance — all tables prefixed rr_ (isolation pattern from stableblacklist's sbl_)
 
+-- gen_random_uuid() lives in pgcrypto (already enabled on Supabase, but be explicit)
+create extension if not exists pgcrypto;
+
 -- 사건: 등록된 익스플로잇/해킹 인시던트
 create table if not exists rr_incidents (
   id uuid primary key default gen_random_uuid(),
