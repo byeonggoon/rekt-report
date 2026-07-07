@@ -18,6 +18,7 @@ interface Args {
   depth: number;
   direction: TraceDirection;
   fanout: number;
+  since?: string;
   json: boolean;
 }
 
@@ -31,6 +32,7 @@ function parseArgs(argv: string[]): Args {
       case '--depth': args.depth = Number(argv[++i]); break;
       case '--direction': args.direction = argv[++i] as TraceDirection; break;
       case '--fanout': args.fanout = Number(argv[++i]); break;
+      case '--since': args.since = argv[++i]; break;
       case '--json': args.json = true; break;
       default: break;
     }
@@ -84,7 +86,7 @@ async function main() {
   const args = parseArgs(process.argv.slice(2));
 
   if (!args.origin) {
-    console.error('Usage: npm run trace -- --origin 0x... [--chain ethereum] [--depth 3] [--direction forward|backward] [--json]');
+    console.error('Usage: npm run trace -- --origin 0x... [--chain ethereum] [--depth 3] [--direction forward|backward] [--since 2026-06-20] [--json]');
     process.exit(1);
   }
   if (!isEvmChain(args.chain)) {
@@ -99,7 +101,8 @@ async function main() {
 
   const chain = args.chain;
   getEvmChain(chain); // validate early
-  const fetcher = createEvmFetcher({ apiKey });
+  const sinceTimestamp = args.since ? Math.floor(new Date(args.since).getTime() / 1000) : undefined;
+  const fetcher = createEvmFetcher({ apiKey, sinceTimestamp });
   const stopAt = createStopPredicate();
 
   const result = await trace(args.origin, chain, args.direction, fetcher, stopAt, {

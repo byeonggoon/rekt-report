@@ -33,6 +33,8 @@ interface EtherscanEnvelope<T> {
 export interface EtherscanFetchOptions {
   apiKey: string;
   limit?: number;
+  /** When set, only fetch txs from this block onward, earliest-first (post-incident window). */
+  startBlock?: number;
   /** injected for tests — defaults to global fetch */
   fetchImpl?: typeof fetch;
 }
@@ -89,9 +91,15 @@ export async function fetchEvmHistory(
   const key = `&apikey=${opts.apiKey}`;
   const addr = encodeURIComponent(address);
 
-  const normalUrl = `${base}&module=account&action=txlist&address=${addr}&page=1&offset=${limit}&sort=desc${key}`;
-  const internalUrl = `${base}&module=account&action=txlistinternal&address=${addr}&page=1&offset=${limit}&sort=desc${key}`;
-  const tokenUrl = `${base}&module=account&action=tokentx&address=${addr}&page=1&offset=${limit * 4}&sort=desc${key}`;
+  // Windowed (incident replay): earliest txs from startBlock onward.
+  // Unwindowed (interactive): most recent txs.
+  const windowed = opts.startBlock != null;
+  const sort = windowed ? "asc" : "desc";
+  const range = windowed ? `&startblock=${opts.startBlock}&endblock=99999999` : "";
+
+  const normalUrl = `${base}&module=account&action=txlist&address=${addr}&page=1&offset=${limit}${range}&sort=${sort}${key}`;
+  const internalUrl = `${base}&module=account&action=txlistinternal&address=${addr}&page=1&offset=${limit}${range}&sort=${sort}${key}`;
+  const tokenUrl = `${base}&module=account&action=tokentx&address=${addr}&page=1&offset=${limit * 4}${range}&sort=${sort}${key}`;
 
   const [normal, internal, token] = await Promise.all([
     callEtherscan<EtherscanNormalTx>(normalUrl, fetchImpl),

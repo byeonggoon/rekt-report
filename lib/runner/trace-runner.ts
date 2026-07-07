@@ -52,7 +52,9 @@ export async function runTraceJob(jobId: string): Promise<RunResult> {
   await markJobRunning(jobId);
   try {
     const resume = await buildResume(jobId);
-    const fetcher = createEvmFetcher({ apiKey });
+    // Window the trace to funds moving after the incident time.
+    const sinceTimestamp = Math.floor(new Date(incident.incident_at).getTime() / 1000);
+    const fetcher = createEvmFetcher({ apiKey, sinceTimestamp });
     const stopAt = createStopPredicate();
 
     await trace(seed.address, seed.chain, "forward", fetcher, stopAt, job.config, {
