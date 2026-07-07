@@ -4,7 +4,7 @@ import type { ChainId, TaintTraceConfig } from "@/lib/trace";
 
 export type IncidentStatus = "registered" | "tracing" | "traced" | "failed";
 export type JobStatus = "queued" | "running" | "completed" | "failed";
-export type EndpointType = "cex" | "dormant" | "mixer" | "bridge-out" | "pruned";
+export type EndpointType = "cex" | "dormant" | "mixer" | "bridge-out" | "pruned" | "dispersed";
 
 export interface HackerAddress {
   address: string;

@@ -119,6 +119,23 @@ export interface TaintedEdgeData {
   transfers: AddressTransfer[];
 }
 
+/**
+ * Recorded at a hop where more counterparties existed than maxFanoutPerHop, so the
+ * long tail was not followed. Instead of silently dropping it (and inflating the kept
+ * branches' taint), we account the untraced share here — the classic smurfing signal.
+ */
+export interface Dispersion {
+  /** The wallet whose outflow fanned out beyond the cap */
+  from: string;
+  chainId: ChainId;
+  /** How many top-value branches were followed */
+  keptCount: number;
+  /** How many long-tail branches were left untraced */
+  droppedCount: number;
+  /** 0..1 — taint that flowed to the untraced wallets (accounted, not redistributed) */
+  dispersedTaint: number;
+}
+
 export interface TaintTraceResult {
   origin: string;
   direction: TraceDirection;
@@ -127,4 +144,6 @@ export interface TaintTraceResult {
   edges: TaintedEdgeData[];
   /** True when the trace stopped because the total-node budget was hit */
   reachedMaxNodes: boolean;
+  /** Fan-out points where the long tail was left untraced (coverage accounting) */
+  dispersions: Dispersion[];
 }

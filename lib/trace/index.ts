@@ -8,6 +8,7 @@ export type {
   TaintedNode,
   TaintedEdgeData,
   StopReason,
+  Dispersion,
 } from './types';
 export { DEFAULT_TRACE_CONFIG } from './types';
 export { trace } from './bfs-tracer';

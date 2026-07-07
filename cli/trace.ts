@@ -69,6 +69,15 @@ function summarize(result: TaintTraceResult): void {
   const reachedCex = byReason['cex'] ?? 0;
   const reachedMixer = byReason['mixer'] ?? 0;
   console.log(`\nTaint reaching CEX: ${pct(reachedCex)} | mixer: ${pct(reachedMixer)}`);
+
+  if (result.dispersions.length > 0) {
+    const dispersedTotal = result.dispersions.reduce((s, d) => s + d.dispersedTaint, 0);
+    const droppedWallets = result.dispersions.reduce((s, d) => s + d.droppedCount, 0);
+    console.log(
+      `Dispersed (untraced long tail): ${pct(dispersedTotal)} across ${droppedWallets} wallets ` +
+        `at ${result.dispersions.length} fan-out point(s) — raise --fanout to follow more`,
+    );
+  }
 }
 
 async function main() {

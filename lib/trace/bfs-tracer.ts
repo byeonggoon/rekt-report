@@ -8,6 +8,7 @@ import type {
   TaintedNode,
   TaintedEdgeData,
   StopReason,
+  Dispersion,
 } from './types';
 import { DEFAULT_TRACE_CONFIG } from './types';
 import { aggregatedToWeights, haircutDistribute } from './haircut';
@@ -68,6 +69,7 @@ export async function trace(
   const visited = new Set<string>([origin.toLowerCase()]);
   const nodes: TaintedNode[] = [];
   const edges: TaintedEdgeData[] = [];
+  const dispersions: Dispersion[] = [];
   let reachedMaxNodes = false;
 
   while (queue.length > 0) {
@@ -93,11 +95,27 @@ export async function trace(
     weights.sort((a, b) => b.weight - a.weight);
     const topWeights = weights.slice(0, config.maxFanoutPerHop);
 
-    // Haircut distribution across the selected children
+    // Haircut over ALL children (not just the kept top-N) so the followed branches
+    // receive their TRUE proportional taint. The untraced long tail's share is
+    // accounted as dispersion below rather than redistributed onto the survivors.
     const taintMap = haircutDistribute(
       taint,
-      topWeights.map(w => ({ counterparty: w.counterparty, weight: w.weight })),
+      weights.map(w => ({ counterparty: w.counterparty, weight: w.weight })),
     );
+
+    // Account the fan-out we did not follow (smurfing / dispersion coverage).
+    if (weights.length > topWeights.length) {
+      const totalWeight = weights.reduce((s, w) => s + w.weight, 0);
+      const keptWeight = topWeights.reduce((s, w) => s + w.weight, 0);
+      const droppedWeight = totalWeight - keptWeight;
+      dispersions.push({
+        from: address,
+        chainId,
+        keptCount: topWeights.length,
+        droppedCount: weights.length - topWeights.length,
+        dispersedTaint: totalWeight > 0 ? taint * (droppedWeight / totalWeight) : 0,
+      });
+    }
 
     for (const w of topWeights) {
       const childAddr = w.counterparty;                 // original case — needed for next fetch
@@ -150,5 +168,5 @@ export async function trace(
     if (reachedMaxNodes) break;
   }
 
-  return { origin, direction, nodes, edges, reachedMaxNodes };
+  return { origin, direction, nodes, edges, reachedMaxNodes, dispersions };
 }

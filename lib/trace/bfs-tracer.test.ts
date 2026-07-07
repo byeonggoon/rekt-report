@@ -106,6 +106,57 @@ describe('trace (forward haircut BFS)', () => {
     expect(addrs).toEqual(['0xA', '0xB']); // top 2 by value
   });
 
+  it('gives kept branches their TRUE taint (normalized over all children, not just kept)', async () => {
+    const fetch = mockFetch({
+      '0xORIGIN': [['0xA', 500], ['0xB', 300], ['0xC', 200], ['0xD', 100]], // total 1100
+    });
+    const res = await trace('0xORIGIN', CHAIN, 'forward', fetch, noStop, {
+      maxDepth: 1,
+      maxFanoutPerHop: 2,
+    });
+    // A/B taint reflects the full denominator (1100), NOT re-normalized over just A+B
+    expect(res.nodes.find(n => n.address === '0xA')!.taintRatio).toBeCloseTo(500 / 1100, 9);
+    expect(res.nodes.find(n => n.address === '0xB')!.taintRatio).toBeCloseTo(300 / 1100, 9);
+  });
+
+  it('records dispersion for the untraced long tail', async () => {
+    const fetch = mockFetch({
+      '0xORIGIN': [['0xA', 500], ['0xB', 300], ['0xC', 200], ['0xD', 100]], // total 1100
+    });
+    const res = await trace('0xORIGIN', CHAIN, 'forward', fetch, noStop, {
+      maxDepth: 1,
+      maxFanoutPerHop: 2,
+    });
+    expect(res.dispersions).toHaveLength(1);
+    const d = res.dispersions[0];
+    expect(d.from).toBe('0xORIGIN');
+    expect(d.keptCount).toBe(2);
+    expect(d.droppedCount).toBe(2); // C, D
+    expect(d.dispersedTaint).toBeCloseTo(300 / 1100, 9); // (200+100)/1100
+  });
+
+  it('conserves taint: kept + dispersed = parent taint', async () => {
+    const fetch = mockFetch({
+      '0xORIGIN': [['0xA', 500], ['0xB', 300], ['0xC', 200], ['0xD', 100]],
+    });
+    const res = await trace('0xORIGIN', CHAIN, 'forward', fetch, noStop, {
+      maxDepth: 1,
+      maxFanoutPerHop: 2,
+    });
+    const keptTaint = res.nodes.reduce((s, n) => s + n.taintRatio, 0);
+    const dispersedTaint = res.dispersions.reduce((s, d) => s + d.dispersedTaint, 0);
+    expect(keptTaint + dispersedTaint).toBeCloseTo(1.0, 9); // no inflation, no loss
+  });
+
+  it('records no dispersion when fan-out is within the cap', async () => {
+    const fetch = mockFetch({ '0xORIGIN': [['0xA', 600], ['0xB', 400]] });
+    const res = await trace('0xORIGIN', CHAIN, 'forward', fetch, noStop, {
+      maxDepth: 1,
+      maxFanoutPerHop: 10,
+    });
+    expect(res.dispersions).toHaveLength(0);
+  });
+
   it('stops at maxDepth', async () => {
     const fetch = mockFetch({
       '0xORIGIN': [['0xA', 1000]],
