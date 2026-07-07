@@ -11,6 +11,7 @@ export {
 export {
   createJob,
   getJob,
+  claimNextQueuedJob,
   markJobRunning,
   updateJobProgress,
   finishJob,

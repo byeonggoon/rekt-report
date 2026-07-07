@@ -29,6 +29,32 @@ export async function getJob(id: string): Promise<TraceJobRow | null> {
   return (data as TraceJobRow) ?? null;
 }
 
+/**
+ * Atomically claim the oldest queued job: flip it to `running` only if still `queued`.
+ * Returns the claimed job, or null if there are none / another worker won the race.
+ */
+export async function claimNextQueuedJob(): Promise<TraceJobRow | null> {
+  const sb = getSupabase();
+  const { data: candidates, error } = await sb
+    .from(JOBS)
+    .select("id")
+    .eq("status", "queued")
+    .order("created_at", { ascending: true })
+    .limit(1);
+  if (error) throw new Error(`claimNextQueuedJob(select): ${error.message}`);
+  if (!candidates || candidates.length === 0) return null;
+
+  const { data: claimed, error: e2 } = await sb
+    .from(JOBS)
+    .update({ status: "running", started_at: new Date().toISOString() })
+    .eq("id", candidates[0].id)
+    .eq("status", "queued") // conditional — loses the race → no row returned
+    .select()
+    .maybeSingle();
+  if (e2) throw new Error(`claimNextQueuedJob(claim): ${e2.message}`);
+  return (claimed as TraceJobRow) ?? null;
+}
+
 export async function markJobRunning(id: string): Promise<void> {
   const { error } = await getSupabase()
     .from(JOBS)
