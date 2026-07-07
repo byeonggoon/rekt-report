@@ -1,49 +1,6 @@
+import TraceDiagram from "@/components/TraceDiagram";
+
 const GITHUB = "https://github.com/byeonggoon/rekt-report";
-
-/* Trace node — origin/intermediate/endpoint */
-function Node({
-  x,
-  y,
-  label,
-  taint,
-  kind,
-}: {
-  x: number;
-  y: number;
-  label: string;
-  taint: string;
-  kind: "origin" | "hop" | "mixer" | "open";
-}) {
-  const color =
-    kind === "origin" || kind === "mixer"
-      ? "var(--blaze)"
-      : kind === "open"
-        ? "var(--cyan)"
-        : "var(--amber)";
-  const r = kind === "origin" ? 9 : 6.5;
-  return (
-    <g>
-      {(kind === "origin" || kind === "mixer") && (
-        <circle cx={x} cy={y} r={r + 7} fill="none" stroke={color} strokeOpacity={0.25} />
-      )}
-      <circle cx={x} cy={y} r={r} fill={color}>
-        {kind === "origin" && (
-          <animate attributeName="opacity" values="1;0.5;1" dur="1.6s" repeatCount="indefinite" />
-        )}
-      </circle>
-      <text className="node-lbl" x={x} y={y - 15} textAnchor="middle" fill="var(--dim)">
-        {label}
-      </text>
-      <text className="node-taint" x={x} y={y + 26} textAnchor="middle" fill={color}>
-        {taint}
-      </text>
-    </g>
-  );
-}
-
-function Flow({ d }: { d: string }) {
-  return <path className="flow" d={d} stroke="var(--amber)" />;
-}
 
 export default function Home() {
   return (
@@ -94,33 +51,8 @@ export default function Home() {
             </a>
           </div>
 
-          {/* TRACE DIAGRAM */}
-          <div className="trace-panel" id="trace">
-            <div className="trace-head">
-              <span>
-                Live trace — <span className="tag">Ronin exploit</span> (replay)
-              </span>
-              <span>haircut taint · forward · 3 hops</span>
-            </div>
-            <svg className="trace-svg" viewBox="0 0 1100 300" role="img"
-              aria-label="Tainted funds flowing from the hacker wallet through intermediary wallets to a mixer and an open wallet">
-              {/* edges */}
-              <Flow d="M 92 150 C 200 150, 230 92, 322 92" />
-              <Flow d="M 92 150 C 200 150, 230 210, 322 210" />
-              <Flow d="M 352 92 C 460 92, 500 92, 592 92" />
-              <Flow d="M 352 210 C 460 210, 500 210, 592 210" />
-              <Flow d="M 622 92 C 740 92, 780 92, 872 92" />
-              <Flow d="M 622 210 C 740 210, 780 210, 872 210" />
-              {/* nodes */}
-              <Node x={80} y={150} label="HACKER · 0x098B…2f96" taint="100%" kind="origin" />
-              <Node x={340} y={92} label="0x3a1c…b7" taint="62%" kind="hop" />
-              <Node x={340} y={210} label="0x9f2e…4d" taint="38%" kind="hop" />
-              <Node x={610} y={92} label="0x71d0…e3" taint="41%" kind="hop" />
-              <Node x={610} y={210} label="0xc44a…08" taint="27%" kind="hop" />
-              <Node x={900} y={92} label="TORNADO CASH · [MIXER]" taint="10.5%" kind="mixer" />
-              <Node x={900} y={210} label="0x5be1…a9 · OPEN" taint="27%" kind="open" />
-            </svg>
-          </div>
+          {/* TRACE DIAGRAM (collapsed summary → click to expand) */}
+          <TraceDiagram />
         </div>
       </header>
 

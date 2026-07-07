@@ -274,6 +274,100 @@ h1.hero-title .strike::after {
   height: auto;
   display: block;
 }
+
+/* collapsed one-line view — clickable to expand */
+.trace-collapsed {
+  display: block;
+  width: 100%;
+  border: none;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.trace-collapsed:hover {
+  background: rgba(255, 77, 0, 0.04);
+}
+.trace-collapsed:hover .flow {
+  stroke: var(--blaze);
+}
+.trace-flow-hint {
+  font-family: var(--font-mono-stack);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+/* head toggle button */
+.trace-toggle {
+  font-family: var(--font-mono-stack);
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--blaze);
+  background: none;
+  border: 1px solid var(--line2);
+  padding: 5px 11px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.trace-toggle:hover {
+  border-color: var(--blaze);
+  background: rgba(255, 77, 0, 0.08);
+}
+
+/* final-destination summary strip */
+.trace-summary {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 14px 18px;
+  border-top: 1px solid var(--line);
+  font-family: var(--font-mono-stack);
+  font-size: 0.8rem;
+}
+.trace-summary .ts-label {
+  color: var(--faint);
+  font-size: 0.68rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.trace-summary .ts-dest {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text);
+  font-weight: 500;
+}
+.trace-summary .ts-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+.trace-summary .ts-dot.mixer {
+  background: var(--blaze);
+  box-shadow: 0 0 8px var(--blaze);
+}
+.trace-summary .ts-dot.cex {
+  background: var(--cyan);
+  box-shadow: 0 0 8px var(--cyan);
+}
+.trace-summary .ts-tag {
+  font-size: 0.62rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--blaze);
+  border: 1px solid var(--blaze);
+  padding: 1px 6px;
+}
+.trace-summary .ts-note {
+  color: var(--dim);
+  margin-left: auto;
+}
+@media (max-width: 640px) {
+  .trace-summary .ts-note { margin-left: 0; }
+}
 .flow {
   fill: none;
   stroke-width: 1.6;
