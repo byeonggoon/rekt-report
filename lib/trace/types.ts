@@ -147,3 +147,40 @@ export interface TaintTraceResult {
   /** Fan-out points where the long tail was left untraced (coverage accounting) */
   dispersions: Dispersion[];
 }
+
+// ===== Hop-level progress + resume (for the DB-backed worker) =====
+
+/** A pending node to expand at the next hop — the serializable BFS frontier. */
+export interface FrontierEntry {
+  address: string;
+  chain: ChainId;
+  taintRatio: number;
+  depth: number;
+}
+
+/** What the engine emits after completing one hop. The worker persists this. */
+export interface HopDelta {
+  hop: number;
+  /** Nodes discovered during this hop (for incremental endpoint persistence) */
+  newNodes: TaintedNode[];
+  /** Dispersions recorded during this hop */
+  newDispersions: Dispersion[];
+  /** The next frontier (resume point) + full visited set */
+  frontier: FrontierEntry[];
+  visited: string[];
+}
+
+/** State to resume a trace from a saved checkpoint. */
+export interface ResumeState {
+  frontier: FrontierEntry[];
+  visited: string[];
+  /** The hop to resume at (last-saved hop + 1) */
+  startHop: number;
+}
+
+export interface TraceHooks {
+  /** Invoked after each hop; await it to persist a checkpoint before the next hop. */
+  onHop?: (delta: HopDelta) => void | Promise<void>;
+  /** When set, the trace continues from this frontier instead of the origin. */
+  resume?: ResumeState;
+}

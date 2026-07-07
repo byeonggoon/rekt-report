@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { trace } from './bfs-tracer';
-import type { AggregatedTransfer, AddressTransfer, ChainId, StopReason, FetchResult } from './index';
+import type { AggregatedTransfer, AddressTransfer, ChainId, StopReason, FetchResult, HopDelta, ResumeState } from './index';
 
 /**
  * Build a mock fetch over a static forward-flow graph.
@@ -234,5 +234,61 @@ describe('trace (backward direction)', () => {
     const hacker = res.nodes.find(n => n.address === '0xHACKER')!;
     expect(hacker).toBeDefined();
     expect(hacker.taintRatio).toBeCloseTo(1.0, 9);
+  });
+});
+
+describe('trace (hop callbacks + resume)', () => {
+  it('invokes onHop once per hop with that hop’s new nodes and next frontier', async () => {
+    const fetch = mockFetch({
+      '0xORIGIN': [['0xA', 1000]],
+      '0xA': [['0xB', 1000]],
+    });
+    const deltas: HopDelta[] = [];
+    await trace('0xORIGIN', CHAIN, 'forward', fetch, noStop, { maxDepth: 2 }, {
+      onHop: (d) => { deltas.push(d); },
+    });
+    expect(deltas.map(d => d.hop)).toEqual([0, 1]);
+    // hop 0 discovered A and hands [A] forward as the next frontier
+    expect(deltas[0].newNodes.map(n => n.address)).toEqual(['0xA']);
+    expect(deltas[0].frontier.map(f => f.address)).toEqual(['0xA']);
+    // hop 1 discovered B; nothing left to expand
+    expect(deltas[1].newNodes.map(n => n.address)).toEqual(['0xB']);
+    expect(deltas[1].frontier).toHaveLength(0);
+    // visited grows monotonically and includes the origin
+    expect(deltas[1].visited).toContain('0xorigin');
+    expect(deltas[1].visited.length).toBeGreaterThanOrEqual(deltas[0].visited.length);
+  });
+
+  it('resuming from a hop-0 checkpoint yields the same nodes as a full run', async () => {
+    const graph: Record<string, [string, number][]> = {
+      '0xO': [['0xA', 600], ['0xB', 400]],
+      '0xA': [['0xC', 600]],
+      '0xB': [['0xD', 400]],
+    };
+
+    // Full run captures per-hop deltas; the hop-0 delta is a realistic checkpoint.
+    const deltas: HopDelta[] = [];
+    const full = await trace('0xO', CHAIN, 'forward', mockFetch(graph), noStop, { maxDepth: 2 }, {
+      onHop: (d) => { deltas.push(d); },
+    });
+    const cp = deltas[0]; // after hop 0: frontier = [A, B]
+    expect(cp.frontier.map(f => f.address).sort()).toEqual(['0xA', '0xB']);
+
+    const resume: ResumeState = {
+      frontier: cp.frontier,
+      visited: cp.visited,
+      startHop: cp.hop + 1,
+    };
+
+    // Resume from hop 1 to completion; depth-2 nodes must match the full run.
+    const resumed = await trace('0xO', CHAIN, 'forward', mockFetch(graph), noStop, { maxDepth: 2 }, { resume });
+
+    const fullDepth2 = full.nodes.filter(n => n.depth === 2).map(n => n.address).sort();
+    const resumedDepth2 = resumed.nodes.filter(n => n.depth === 2).map(n => n.address).sort();
+    expect(resumedDepth2).toEqual(fullDepth2); // C, D discovered on resume
+    // taint preserved across the resume boundary
+    const cFull = full.nodes.find(n => n.address === '0xC')!.taintRatio;
+    const cResumed = resumed.nodes.find(n => n.address === '0xC')!.taintRatio;
+    expect(cResumed).toBeCloseTo(cFull, 9);
   });
 });

@@ -1,4 +1,4 @@
-import type { ChainId, TaintTraceConfig } from "@/lib/trace";
+import type { ChainId, TaintTraceConfig, FrontierEntry } from "@/lib/trace";
 
 /** Row shapes mirror db/migrations/001_init.sql (snake_case as PostgREST returns them). */
 
@@ -47,18 +47,16 @@ export interface TraceJobRow {
 }
 
 // ---- checkpoints (resumability + live progress) ----
-export interface FrontierEntry {
-  address: string;
-  chain: ChainId;
-  taintRatio: number;
-  depth: number;
-}
+// FrontierEntry is owned by the engine (@/lib/trace) and re-exported for convenience.
+export type { FrontierEntry } from "@/lib/trace";
+
 export interface CheckpointRow {
   id: number;
   job_id: string;
   hop: number;
   frontier: FrontierEntry[];
-  visited: { count: number };
+  /** count for the dashboard; addresses for exact resume dedup */
+  visited: { count: number; addresses: string[] };
   created_at: string;
 }
 

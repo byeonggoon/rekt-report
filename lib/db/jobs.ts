@@ -61,12 +61,12 @@ export async function saveCheckpoint(
   jobId: string,
   hop: number,
   frontier: FrontierEntry[],
-  visitedCount: number,
+  visited: string[],
 ): Promise<void> {
   const { error } = await getSupabase()
     .from(CHECKPOINTS)
     .upsert(
-      { job_id: jobId, hop, frontier, visited: { count: visitedCount } },
+      { job_id: jobId, hop, frontier, visited: { count: visited.length, addresses: visited } },
       { onConflict: "job_id,hop" },
     );
   if (error) throw new Error(`saveCheckpoint: ${error.message}`);

@@ -9,6 +9,10 @@ export type {
   TaintedEdgeData,
   StopReason,
   Dispersion,
+  FrontierEntry,
+  HopDelta,
+  ResumeState,
+  TraceHooks,
 } from './types';
 export { DEFAULT_TRACE_CONFIG } from './types';
 export { trace } from './bfs-tracer';
