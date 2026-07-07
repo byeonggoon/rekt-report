@@ -22,6 +22,10 @@ describe('createStopPredicate', () => {
     expect(stop(BINANCE_HOT)).toBe('cex');
   });
 
+  it('stops at a bridge (bridge-out)', () => {
+    expect(stop('0xd37bbe5744d730a1d98d8dc97c42f0ca46ad7146')).toBe('bridge'); // THORChain Router
+  });
+
   it('does not stop at an unknown EOA', () => {
     expect(stop('0x0000000000000000000000000000000000000001')).toBeNull();
   });

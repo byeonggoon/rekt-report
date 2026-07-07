@@ -10,17 +10,21 @@ import type { EndpointRow, NewEndpoint } from "@/lib/db";
  * amount attribution (FIFO) and full path reconstruction are later layers, hence
  * tainted_amount "0" and empty path_tx_hashes here.
  */
+// Terminal stop reasons → persisted endpoint type.
+const STOP_TO_ENDPOINT = { cex: "cex", mixer: "mixer", bridge: "bridge-out" } as const;
+
 export function endpointsFromHop(jobId: string, delta: HopDelta): NewEndpoint[] {
   const eps: NewEndpoint[] = [];
 
   for (const n of delta.newNodes) {
-    if (n.stopReason !== "cex" && n.stopReason !== "mixer") continue;
+    const type = n.stopReason && STOP_TO_ENDPOINT[n.stopReason as keyof typeof STOP_TO_ENDPOINT];
+    if (!type) continue;
     const entity = getEntity(n.address);
     eps.push({
       job_id: jobId,
       address: n.address,
       chain: n.chainId,
-      type: n.stopReason, // 'cex' | 'mixer'
+      type, // 'cex' | 'mixer' | 'bridge-out'
       entity_name: entity?.name ?? null,
       tainted_amount: "0",
       token_symbol: "ETH",

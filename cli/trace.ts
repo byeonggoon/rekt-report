@@ -48,16 +48,17 @@ function summarize(result: TaintTraceResult): void {
   console.log(`\nTrace: ${result.origin} (${result.direction})`);
   console.log(`Nodes: ${result.nodes.length} | Edges: ${result.edges.length} | budget hit: ${result.reachedMaxNodes}\n`);
 
+  const TERMINAL = new Set(['cex', 'mixer', 'bridge']);
   const byReason: Record<string, number> = {};
-  const stopped = result.nodes.filter(n => n.stopReason === 'cex' || n.stopReason === 'mixer');
+  const stopped = result.nodes.filter(n => n.stopReason && TERMINAL.has(n.stopReason));
   for (const n of result.nodes) {
     if (n.stopReason) byReason[n.stopReason] = (byReason[n.stopReason] ?? 0) + n.taintRatio;
   }
 
   if (stopped.length === 0) {
-    console.log('No CEX/mixer endpoints reached within depth/budget.');
+    console.log('No CEX / mixer / bridge endpoints reached within depth/budget.');
   } else {
-    console.log('Endpoints (funds reaching a CEX / mixer):');
+    console.log('Endpoints (funds reaching a CEX / mixer / bridge):');
     stopped
       .sort((a, b) => b.taintRatio - a.taintRatio)
       .slice(0, 20)
@@ -68,9 +69,7 @@ function summarize(result: TaintTraceResult): void {
       });
   }
 
-  const reachedCex = byReason['cex'] ?? 0;
-  const reachedMixer = byReason['mixer'] ?? 0;
-  console.log(`\nTaint reaching CEX: ${pct(reachedCex)} | mixer: ${pct(reachedMixer)}`);
+  console.log(`\nTaint reaching CEX: ${pct(byReason['cex'] ?? 0)} | mixer: ${pct(byReason['mixer'] ?? 0)} | bridge-out: ${pct(byReason['bridge'] ?? 0)}`);
 
   if (result.dispersions.length > 0) {
     const dispersedTotal = result.dispersions.reduce((s, d) => s + d.dispersedTaint, 0);

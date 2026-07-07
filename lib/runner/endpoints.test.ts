@@ -58,6 +58,15 @@ describe("endpointsFromHop", () => {
     expect(eps[0].entity_name).toBeNull();
   });
 
+  it("maps a bridge-stopped node to a bridge-out endpoint", () => {
+    const eps = endpointsFromHop("job1", delta({
+      newNodes: [node({ address: "0xd37bbe5744d730a1d98d8dc97c42f0ca46ad7146", stopReason: "bridge", taintRatio: 0.3 })],
+    }));
+    expect(eps).toHaveLength(1);
+    expect(eps[0].type).toBe("bridge-out");
+    expect(eps[0].entity_name).toBe("THORChain Router (Ethereum)");
+  });
+
   it("emits both node endpoints and dispersions in one hop", () => {
     const eps = endpointsFromHop("job1", delta({
       newNodes: [node({ address: BINANCE_HOT, stopReason: "cex" })],

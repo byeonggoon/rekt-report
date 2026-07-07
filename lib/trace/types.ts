@@ -78,7 +78,7 @@ export interface AggregatedTransfer {
 export type TraceDirection = 'backward' | 'forward';
 
 /** Reasons a branch may stop expanding during BFS */
-export type StopReason = 'cex' | 'mixer' | 'depth' | 'max-nodes' | 'visited' | 'dust';
+export type StopReason = 'cex' | 'mixer' | 'bridge' | 'depth' | 'max-nodes' | 'visited' | 'dust';
 
 export interface TaintTraceConfig {
   /** Maximum hops from origin */

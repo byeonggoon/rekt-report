@@ -21,9 +21,9 @@ export function getEntity(address: string): EntityEntry | null {
 
 /**
  * Build a stop predicate for the trace engine.
- * A branch halts when it reaches a CEX (funds leave on-chain visibility) or a
- * mixer (anonymization boundary). Bridges are NOT stopped here — cross-chain
- * continuation is a later phase; for v1 they surface as ordinary endpoints.
+ * A branch halts at a CEX (funds leave on-chain visibility), a mixer (anonymization
+ * boundary), or a bridge (funds leave the chain — v1 does not follow cross-chain, so a
+ * bridge is a terminal "bridge-out" endpoint).
  */
 export function createStopPredicate() {
   // Chain-agnostic for EVM; the engine's ShouldStopAtFn passes a chainId arg JS ignores here.
@@ -31,6 +31,7 @@ export function createStopPredicate() {
     const entity = getEntity(counterparty);
     if (entity?.category === 'cex') return 'cex';
     if (entity?.category === 'mixer') return 'mixer';
+    if (entity?.category === 'bridge') return 'bridge';
     return null;
   };
 }
