@@ -4,6 +4,7 @@ export * from "./types";
 export {
   createIncident,
   getIncidentBySlug,
+  getIncidentById,
   listIncidents,
   setIncidentStatus,
 } from "./incidents";

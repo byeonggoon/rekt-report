@@ -15,6 +15,12 @@ export async function getIncidentBySlug(slug: string): Promise<IncidentRow | nul
   return (data as IncidentRow) ?? null;
 }
 
+export async function getIncidentById(id: string): Promise<IncidentRow | null> {
+  const { data, error } = await getSupabase().from(T).select("*").eq("id", id).maybeSingle();
+  if (error) throw new Error(`getIncidentById: ${error.message}`);
+  return (data as IncidentRow) ?? null;
+}
+
 export async function listIncidents(): Promise<IncidentRow[]> {
   const { data, error } = await getSupabase()
     .from(T)

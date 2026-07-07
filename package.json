@@ -9,7 +9,8 @@
     "lint": "eslint",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "trace": "tsx --env-file=.env.local cli/trace.ts"
+    "trace": "tsx --env-file=.env.local cli/trace.ts",
+    "job": "tsx --env-file=.env.local cli/run-job.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.108.2",
